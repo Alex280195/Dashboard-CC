@@ -153,25 +153,27 @@ def is_sqlite():
 # ---------------------------------------------------------------------------------------
 # Inisialisasi
 # ---------------------------------------------------------------------------------------
-def init():
+def init(seed=True, create_admin=True):
     with conn() as c:
         schema = SCHEMA.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'BIGSERIAL PRIMARY KEY') \
             if _engine().dialect.name == 'postgresql' else SCHEMA
         c.executescript(schema)
-        for k, v in DEFAULT_SETTINGS.items():
-            c.execute('INSERT INTO pengaturan(kunci,nilai) VALUES(?,?) ON CONFLICT(kunci) DO NOTHING', (k, v))
-        if c.execute('SELECT COUNT(*) FROM users').fetchone()[0] == 0:
+        if seed or create_admin:
+            for k, v in DEFAULT_SETTINGS.items():
+                c.execute('INSERT INTO pengaturan(kunci,nilai) VALUES(?,?) ON CONFLICT(kunci) DO NOTHING', (k, v))
+        if create_admin and c.execute('SELECT COUNT(*) FROM users').fetchone()[0] == 0:
             password = os.environ.get('INITIAL_ADMIN_PASSWORD') or _secret('app', 'initial_admin_password')
             if not password or len(password) < 12:
                 raise RuntimeError('Set INITIAL_ADMIN_PASSWORD (at least 12 characters) before initializing an empty database.')
             _insert_user(c, 'admin', password, 'admin')
-        empty = (c.execute('SELECT COUNT(*) FROM indikator').fetchone()[0] == 0
-                 and c.execute('SELECT COUNT(*) FROM config').fetchone()[0] == 0)
-        if empty and os.path.exists(SEED_XLSX):
-            import importer
-            importer.import_xlsx(SEED_XLSX, c, replace=True)
-            c.execute('INSERT INTO log(waktu,username,aksi,detail) VALUES(?,?,?,?)',
-                      (_now(), 'sistem', 'seed', 'Data awal diimpor dari ' + os.path.basename(SEED_XLSX)))
+        if seed:
+            empty = (c.execute('SELECT COUNT(*) FROM indikator').fetchone()[0] == 0
+                     and c.execute('SELECT COUNT(*) FROM config').fetchone()[0] == 0)
+            if empty and os.path.exists(SEED_XLSX):
+                import importer
+                importer.import_xlsx(SEED_XLSX, c, replace=True)
+                c.execute('INSERT INTO log(waktu,username,aksi,detail) VALUES(?,?,?,?)',
+                          (_now(), 'sistem', 'seed', 'Data awal diimpor dari ' + os.path.basename(SEED_XLSX)))
 
 
 def _now():

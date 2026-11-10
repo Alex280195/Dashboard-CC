@@ -25,8 +25,16 @@ streamlit run app.py
 1. Buat PostgreSQL database (misalnya Supabase) dan simpan connection URL dengan SSL.
 2. Push seluruh project ke repository GitHub. `data/`, `screenshots/`, dan file secrets lokal
    diabaikan oleh `.gitignore`; workbook seed `REPORT_DASHBOARD_CC.xlsx` tetap menjadi data awal.
-3. Di Streamlit Community Cloud, deploy `app.py` dari repository tersebut.
-4. Masukkan secrets berikut di pengaturan aplikasi Streamlit Cloud (jangan commit atau kirim
+3. Sebelum menyalin database lokal, ganti password semua akun lokal dengan password kuat dan unik.
+   Atur `DATABASE_URL` ke PostgreSQL tujuan di PowerShell, lalu jalankan:
+   ```powershell
+   $env:DATABASE_URL = "postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
+   python migrate_sqlite_to_postgres.py --confirm-user-passwords-changed
+   ```
+   Migrasi berhenti jika target sudah berisi data. Gunakan `--replace` hanya jika data tujuan
+   memang boleh ditimpa. Jangan unggah `data/dashboard.db` ke repository publik.
+4. Di Streamlit Community Cloud, deploy `app.py` dari repository tersebut.
+5. Masukkan secrets berikut di pengaturan aplikasi Streamlit Cloud (jangan commit atau kirim
    connection URL/password lewat chat):
    ```toml
    [database]
@@ -38,11 +46,8 @@ streamlit run app.py
    `initial_admin_password` hanya digunakan saat tabel pengguna masih kosong. Setelah deploy,
    login dengan username `admin` dan password tersebut, lalu buat akun tambahan melalui menu
    *Pengguna*.
-5. Untuk backup PostgreSQL, gunakan fitur backup dari penyedia database; export Excel aplikasi
+6. Untuk backup PostgreSQL, gunakan fitur backup dari penyedia database; export Excel aplikasi
    tetap tersedia untuk data dashboard.
-
-Jika database lokal sudah berisi perubahan yang perlu dibawa ke hosting, ekspor/backup dulu dan
-jangan unggah `data/dashboard.db` ke repository publik.
 
 ## Hak akses
 | Menu                  | admin | user |
@@ -61,6 +66,7 @@ jangan unggah `data/dashboard.db` ke repository publik.
 - `render.py`   Render HTML dashboard (CSS persis dari Index.html di `style.css`)
 - `db.py`       SQLite/PostgreSQL, autentikasi (PBKDF2), CRUD, rollover hari
 - `importer.py` Import dari Excel (sheet Config, Dashboard, Prakiraan)
+- `migrate_sqlite_to_postgres.py` Salin database SQLite lokal ke PostgreSQL
 - `shots.py`    Screenshot di server (opsional, Playwright)
 
 ## Catatan perbedaan dengan versi Google Sheet
