@@ -1,0 +1,7 @@
+streamlit>=1.37
+pandas>=2.0
+openpyxl>=3.1
+SQLAlchemy>=2.0
+psycopg[binary]>=3.2
+# opsional - hanya untuk screenshot otomatis di server:
+# playwright>=1.45
