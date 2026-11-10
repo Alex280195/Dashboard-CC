@@ -13,7 +13,7 @@ streamlit run app.py
 ```
 Saat pertama dijalankan, database dibuat otomatis dan diisi dari `REPORT_DASHBOARD_CC.xlsx`.
 Pada database baru, buat password admin awal melalui environment variable `INITIAL_ADMIN_PASSWORD`
-(minimal 12 karakter). Akun `admin` akan dibuat; akun tambahan dapat dibuat dari menu *Pengguna*.
+(minimal 12 karakter). Akun `admin` akan dibuat; akun tambahan dapat dibuat dari panel *Admin → Pengguna*.
 
 PowerShell lokal:
 ```powershell
@@ -44,24 +44,19 @@ streamlit run app.py
    initial_admin_password = "password-admin-kuat-minimal-12-karakter"
    ```
    `initial_admin_password` hanya digunakan saat tabel pengguna masih kosong. Setelah deploy,
-   login dengan username `admin` dan password tersebut, lalu buat akun tambahan melalui menu
-   *Pengguna*.
+   login dengan username `admin` dan password tersebut, lalu buat akun tambahan melalui panel
+   *Admin → Pengguna*.
 6. Untuk backup PostgreSQL, gunakan fitur backup dari penyedia database; export Excel aplikasi
    tetap tersedia untuk data dashboard.
 
-## Hak akses
-| Menu                  | admin | user |
-|-----------------------|:-----:|:----:|
-| Dashboard             |  ✅   |  ✅  |
-| Input Harian (nilai, complain platform, top kontributor) | ✅ | ✅ (tanpa hapus) |
-| Kelola Indikator (tambah/edit/hapus, target, operator, logic trend) | ✅ | – |
-| Teks & Pengaturan (isi sheet Config, auto-refresh, jadwal screenshot) | ✅ | – |
-| Claim & Poin (total poin, tabel warna) | ✅ | – |
-| Pengguna, Import/Export, Log Aktivitas | ✅ | – |
-| Ganti Password        |  ✅   |  ✅  |
+## Satu halaman, semua fitur di dashboard
+Tidak ada panel manual di bawah dashboard. Setelah login: **toolbar di atas dashboard**, tombolnya membuka jendela (pop-up) di atas dashboard.
+- **admin**: ✏️ Edit (tabel lengkap tambah/edit/hapus + nilai harian cepat) · ➕ Tambah (form indikator baru) · 📥 Import Excel · 📤 Export/backup · ⏭ Ganti hari · 🏆 Claim · 🔤 Teks & pengaturan · ⚙️ Lainnya (pengguna, log, screenshot server, ganti password, muat ulang) · 🚪 Keluar.
+- **Tombol langsung di dashboard** (Mode edit ON): ✏️ di pojok tiap kartu, ➕ Tambah indikator di tiap bar seksi, ✏️ Ubah di panel Claim/kontributor, ✏️ Ubah teks di header. *Mode edit: OFF* menyembunyikan semuanya untuk tampilan/screenshot.
+- **user**: ✏️ Input nilai, 🏆 Claim (tanpa hapus), ⚙️ Lainnya (ganti password), 🚪 Keluar.
 
 ## Struktur file
-- `app.py`      UI Streamlit: login, menu, CRUD
+- `app.py`      UI Streamlit: login + satu halaman (dashboard + panel edit)
 - `logic.py`    Port logika Code.gs + hitung warna/tren/format Index.html
 - `render.py`   Render HTML dashboard (CSS persis dari Index.html di `style.css`)
 - `db.py`       SQLite/PostgreSQL, autentikasi (PBKDF2), CRUD, rollover hari
@@ -71,9 +66,9 @@ streamlit run app.py
 
 ## Catatan perbedaan dengan versi Google Sheet
 - Rumus `=TODAY()-N` diganti token `{HARI-N}` (mis. `{HARI-1}` = kemarin), tetap otomatis berganti tiap hari.
-- Pergantian hari manual: menu *Input Harian → Pergantian hari* menggeser Hari Ini → Kemarin → 2 Hari Lalu.
+- Pergantian hari manual: tombol *⏭ Ganti hari* di toolbar menggeser Hari Ini → Kemarin → 2 Hari Lalu.
 - Config `ID Spreadsheet Sumber` / `Nama Sheet Sumber` tidak dipakai (khusus Google Sheet).
-- Urutan seksi mengikuti kolom **No Seksi** (kecil di atas). Ubah angkanya di *Kelola Indikator* untuk memindah seksi.
+- Urutan seksi mengikuti kolom **No Seksi** (kecil di atas). Ubah angkanya di tabel Indikator untuk memindah seksi.
 - "Simpan ke Drive" diganti: tombol 📸 (unduh PNG di browser) dan screenshot server ke folder `screenshots/`.
 
 ## Screenshot di server / otomatis (opsional)
@@ -81,4 +76,4 @@ streamlit run app.py
 pip install playwright
 playwright install chromium
 ```
-Lalu aktifkan jadwal di menu *Teks & Pengaturan → Pengaturan aplikasi*.
+Lalu aktifkan jadwal di panel *Teks dashboard & pengaturan → Pengaturan aplikasi*.

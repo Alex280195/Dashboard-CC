@@ -411,3 +411,26 @@ def rollover_day():
     """Hari baru: Hari Ini -> Hari Sebelumnya -> 2 Hari Lalu, Hari Ini dikosongkan."""
     with conn() as c:
         c.execute('UPDATE indikator SET dua_hari_lalu=hari_sebelumnya, hari_sebelumnya=hari_ini, hari_ini=NULL, hari_ini2=NULL')
+
+
+def update_row(table, row_id, vals, only=None):
+    """Ubah satu baris. only = daftar kolom yang diubah (mis. nilai harian saja untuk role user)."""
+    cols = COLS[table]
+    vals = {c: _clean(vals.get(c), c) for c in cols}
+    if table == 'indikator':
+        vals['satuan'] = vals['satuan'] or '%'
+        vals['tampil'] = vals['tampil'] or 'Ya'
+    if only is None:
+        _validate(table, vals)
+    use = [c for c in cols if (only is None or c in only)]
+    try:
+        with conn() as c:
+            c.execute(f'UPDATE {table} SET ' + ','.join(f'{k}=?' for k in use) + ' WHERE id=?',
+                      [vals[k] for k in use] + [int(row_id)])
+    except IntegrityError as e:
+        raise ValueError('Data duplikat / tidak valid: ' + str(e))
+
+
+def delete_row(table, row_id):
+    with conn() as c:
+        c.execute(f'DELETE FROM {table} WHERE id=?', (int(row_id),))

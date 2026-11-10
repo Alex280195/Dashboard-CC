@@ -274,7 +274,7 @@ def build_dashboard(cfg_rows, ind_rows, kon_rows, tier_rows, settings, now=None)
             order.append(no)
         op = _s(r.get('operator')).strip()
         card = {
-            'name': _s(r.get('indikator')), 'sub': resolve_tokens(r.get('keterangan'), today),
+            'id': r.get('id'), 'name': _s(r.get('indikator')), 'sub': resolve_tokens(r.get('keterangan'), today),
             'icon': _s(r.get('ikon')), 'unit': unit, 'op': op if op in ('<=', '>=') else '',
             'target': _nz(r.get('target')), 'today': _nz(r.get('hari_ini')), 'mtd': _nz(r.get('bulan_ini')),
             'yesterday': _nz(r.get('hari_sebelumnya')), 'day2': _nz(r.get('dua_hari_lalu')),

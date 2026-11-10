@@ -25,6 +25,7 @@ class Ctx:
     def __init__(self, meta):
         self.teks = meta.get('teks') or {}
         self.denda = float(meta.get('dendaLimit') or L.DENDA_LIMIT_DEFAULT)
+        self.editable = False
 
     def T(self, k, d=''):
         v = self.teks.get(k)
@@ -58,7 +59,11 @@ def delta_html(c, u):
     return '<span class="delta %s">%s%s</span>' % (L.color_of(c) or 'flat', '▲ ' if delta >= 0 else '▼ ', L.fmt_delta(delta, u))
 
 
-def top_panel(x, title, zh, arr):
+def ebtn(x, key, label='✏️', cls='pbtn', tip='Edit'):
+    return ('<button class="%s" data-k="%s" title="%s" data-html2canvas-ignore="true">%s</button>' % (cls, key, tip, label)) if x.editable else ''
+
+
+def top_panel(x, title, zh, arr, key='act_claim'):
     mx = max([a['value'] for a in (arr or [])] + [0])
     if arr:
         rows = ''
@@ -70,8 +75,8 @@ def top_panel(x, title, zh, arr):
                 w, L.fmt_rp_full(a['value']))
     else:
         rows = '<div class="tp-empty">%s</div>' % esc(x.T('Teks Belum Ada Data', 'Belum ada data'))
-    return '<div class="tp"><div class="tp-head">%s%s</div><div class="tp-body">%s</div></div>' % (
-        esc(title), ('<span class="zh">%s</span>' % esc(zh)) if zh else '', rows)
+    return '<div class="tp"><div class="tp-head">%s%s%s</div><div class="tp-body">%s</div></div>' % (
+        esc(title), ('<span class="zh">%s</span>' % esc(zh)) if zh else '', ebtn(x, key, '✏️ Ubah', tip='Ubah kontributor'), rows)
 
 
 def claim_html(x, c):
@@ -89,7 +94,7 @@ def claim_html(x, c):
         info += '<div class="c-target">%s: %s</div>' % (esc(x.T('Label Target Bulanan', 'Target Bulanan')), L.fmt(c['target'], u))
     if L.has_val(c['mtd']):
         info += '<div class="c-mtd">%s: %s</div>' % (esc(x.T('Label Bulan Ini', 'Bulan Ini')), L.fmt(c['mtd'], u))
-    col1 = ('<div class="tp"><div class="tp-head">%s<span class="zh">%s</span></div><div class="tp-body tp-main">'
+    col1 = ('<div class="tp"><div class="tp-head">%s<span class="zh">%s</span>' + ebtn(x, 'card_edit_%s' % c.get('id'), '✏️ Ubah', tip='Ubah nilai claim') + '</div><div class="tp-body tp-main">'
             '<div class="c-value"><span class="c-ico">%s</span><span class="c-num">%s</span></div>'
             '<div class="c-info">%s%s</div>'
             '<div class="c-foot"><span>%s</span>%s</div></div></div>') % (
@@ -164,18 +169,77 @@ def card_html(x, c):
         esc(c['icon']), val_html, info, prev_txt(x, c, u), delta_html(c, u), sparkline(c))
 
 
+def _tag_id(html, c, editable=False):
+    """Beri atribut data-id pada kartu supaya bisa diklik (mode edit)."""
+    if c.get('id') is None:
+        return html
+    html = html.replace('<div class="card', '<div data-id="%d" class="card' % int(c['id']), 1)
+    if editable and c['style'] != 'claim':
+        html = html.replace('<span class="dot"></span>', '<span class="dot"></span>' + (
+            '<button class="cedit" data-k="card_edit_%d" title="Edit indikator" data-html2canvas-ignore="true">✏️</button>' % int(c['id'])), 1)
+    return html
+
+
 def sections_html(x, d):
     out = []
     for s in d['sections']:
         n = len(s['cards'])
         out.append(
-            '<div class="sec-bar"><div class="no">%s</div><div class="t">%s%s%s</div><div class="count">%d %s</div></div>'
+            '<div class="sec-bar"><div class="no">%s</div><div class="t">%s%s%s</div>%s<div class="count">%d %s</div></div>'
             '<div class="grid" data-n="%d" style="--n:%d">%s</div>' % (
                 esc(s['no']), esc(s['title']), ('<span>%s</span>' % esc(s['zh'])) if s['zh'] else '',
-                ('<em>(%s)</em>' % esc(s['note'])) if s['note'] else '', n, esc(x.T('Label Indikator', 'Indikator')),
-                n, n, ''.join(card_html(x, c) for c in s['cards'])))
+                ('<em>(%s)</em>' % esc(s['note'])) if s['note'] else '',
+                ebtn(x, 'sec_add_%s' % s['no'], '➕ Tambah indikator', 'sbtn', 'Tambah indikator di seksi ini'),
+                n, esc(x.T('Label Indikator', 'Indikator')),
+                n, n, ''.join(_tag_id(card_html(x, c), c, x.editable) for c in s['cards'])))
     return ''.join(out) or '<div class="state">Belum ada data.</div>'
 
+
+_EDIT_CSS = """
+  .cedit { position: absolute; top: .5rem; right: 2rem; z-index: 3; border: 1px solid #c9d4f2; background: #fff; cursor: pointer;
+    border-radius: 999px; width: 1.7rem; height: 1.7rem; font-size: .8rem; line-height: 1; box-shadow: 0 1px 4px rgba(27,37,71,.15); }
+  .cedit:hover { background: #2f6fe0; border-color: #2f6fe0; }
+  .pbtn { float: right; border: 1px solid #c9d4f2; background: #fff; cursor: pointer; border-radius: 999px; padding: .15rem .6rem;
+    font: 800 .68rem 'Nunito Sans',Arial,sans-serif; color: #1b2547; }
+  .pbtn:hover { background: #2f6fe0; color: #fff; border-color: #2f6fe0; }
+  .sec-bar .sbtn { margin-left: auto; margin-right: .7rem; border: 0; cursor: pointer; background: #fff; color: #1b2547;
+    border-radius: 999px; padding: .25rem .8rem; font: 800 .72rem 'Nunito Sans',Arial,sans-serif; }
+  .sec-bar .sbtn:hover { background: #2f6fe0; color: #fff; }
+  .hedit { position: absolute; top: .6rem; right: .8rem; border: 1px solid #c9d4f2; background: #fff; cursor: pointer; border-radius: 999px;
+    padding: .2rem .7rem; font: 800 .72rem 'Nunito Sans',Arial,sans-serif; color: #1b2547; z-index: 3; }
+  .hedit:hover { background: #2f6fe0; color: #fff; }
+  .editbadge { position: fixed; left: 1.2rem; bottom: 1.2rem; z-index: 5; background: #2f6fe0; color: #fff;
+    font: 700 .8rem 'Nunito Sans',Arial,sans-serif; padding: .45rem .8rem; border-radius: 999px; }
+"""
+
+_OPEN_JS = """
+function openEdit(key){
+  try{
+    var b=window.parent.document.querySelector('.st-key-'+key+' button');
+    if(!b){toast('Tombol edit tidak ditemukan. Muat ulang halaman (F5).');return;}
+    b.click();
+  }catch(e){toast('Klik-edit tidak tersambung: '+e.message);}
+}
+document.addEventListener('click',function(ev){
+  var t=ev.target.closest('button[data-k]');
+  if(t){openEdit(t.getAttribute('data-k'));}
+});
+"""
+
+_EDIT_JS = """
+document.body.classList.add('editmode');
+"""
+
+_BAR_CSS = """
+  .edbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin: 0 0 .8rem; padding: .55rem .7rem;
+    background: #1b2547; border-radius: 10px; font-family: 'Nunito Sans',Arial,sans-serif; }
+  .edbar .who { color: #c9d4f2; font-size: .8rem; font-weight: 700; margin-right: auto; }
+  .edbar button { border: 0; cursor: pointer; background: #fff; color: #1b2547; font: 800 .8rem 'Nunito Sans',Arial,sans-serif;
+    padding: .4rem .75rem; border-radius: 7px; }
+  .edbar button:hover { background: #dbe5f7; }
+  .edbar button.tg { background: #6b7694; color: #fff; }
+  .edbar button.tg.on { background: #0e9f4f; }
+"""
 
 _SHOT_JS = """
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.style.display='block';
@@ -194,9 +258,10 @@ function shot(){
 """
 
 
-def page_html(d, with_tools=True):
+def page_html(d, with_tools=True, editable=False, menu=None, user=''):
     """Dokumen HTML lengkap dashboard. with_tools=False untuk screenshot server."""
     x = Ctx(d['meta'])
+    x.editable = bool(editable and with_tools)
     m = d['meta']
     css = open(os.path.join(_DIR, 'style.css'), encoding='utf-8').read()
     zh_t, zh_s = x.T('Judul Dashboard (CN)', '每日代理区绩效看板'), x.T('Sub Judul (CN)', '仅限总部内部团队')
@@ -209,17 +274,30 @@ def page_html(d, with_tools=True):
         esc(x.T('Label Diperbarui', 'Diperbarui')) + ': <b>' + esc(m.get('diperbarui', '')) + '</b>')
     tools = ''
     scripts = ''
+    bar = ''
     if with_tools:
         tools = ('<div class="tools" data-html2canvas-ignore="true"><button onclick="shot()">📸 Screenshot</button></div>'
                  '<div class="toast" id="toast" data-html2canvas-ignore="true"></div>')
         scripts = ('<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>'
-                   '<script>' + _SHOT_JS + '</script>')
+                   '<script>' + _SHOT_JS + (_EDIT_JS if editable else '') + '</script>')
+        if menu:
+            btns = ''.join('<button data-k="%s">%s</button>' % (k, esc(lbl)) for k, lbl in menu) if editable else ''
+            tgl = '<button class="tg%s" data-k="act_toggle">%s</button>' % (
+                ' on' if editable else '', '✏️ Mode edit: ON' if editable else '✏️ Mode edit: OFF')
+            bar = ('<div class="edbar" data-html2canvas-ignore="true"><span class="who">👤 %s</span>%s%s</div>'
+                   % (esc(user), btns, tgl))
+            scripts = scripts.replace('<script>' + _SHOT_JS, '<script>' + _OPEN_JS + _SHOT_JS, 1)
+        else:
+            bar = ''
+        if editable:
+            tools += '<div class="editbadge" data-html2canvas-ignore="true">✏️ Mode edit aktif: klik tombol ✏️ / ➕ di dashboard</div>'
     return (
         '<!DOCTYPE html><html lang="id"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard Performa Agen Harian</title>'
         '<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">'
-        '<style>' + css + '</style></head><body>'
-        '<div class="wrap" id="shot"><div class="header"><div class="logo">' + LOGO + '</div><div class="h-center">'
+        '<style>' + css + (_EDIT_CSS if editable else '') + (_BAR_CSS if menu else '') + '</style></head><body>'
+        '<div class="wrap" id="shot">' + bar + '<div class="header" style="position:relative">' + (
+            '<button class="hedit" data-k="hdr_edit" data-html2canvas-ignore="true">✏️ Ubah teks</button>' if (x.editable and menu and any(k == 'act_teks' for k, _ in menu)) else '') + '<div class="logo">' + LOGO + '</div><div class="h-center">'
         '<div class="h-title">' + esc(x.T('Judul Dashboard', 'DASHBOARD PERFORMA AGEN HARIAN')) +
         (('<span class="zh">' + esc(zh_t) + '</span>') if zh_t else '') + '</div>'
         '<div class="h-sub">' + esc(x.T('Sub Judul', 'KHUSUS TIM INTERNAL AGEN BANDUNG')) +
